@@ -1,0 +1,40 @@
+MOBILE APP BUILD GUIDE
+
+=== FOR WEB ACCESS (Immediate) ===
+Your app is already accessible at https://sovrenai.app on any mobile browser!
+Users can "Add to Home Screen" for app-like experience.
+
+=== FOR APP STORES (Optional) ===
+
+1. INSTALL TOOLS (if not installed):
+   - Node.js (already installed)
+   - Expo CLI: npm install -g expo-cli eas-cli
+
+2. BUILD APPS:
+   cd /data/sovren/mobile
+   npm install
+   
+   # For testing on your phone:
+   npx expo start
+   (Scan QR code with Expo Go app)
+   
+   # For production builds:
+   eas build --platform all
+
+3. APP STORE SUBMISSION:
+   
+   iOS (Apple App Store):
+   - Need Apple Developer Account ($99/year)
+   - Upload .ipa file via App Store Connect
+   - Review time: 24-48 hours
+   
+   Android (Google Play):
+   - Need Google Play Developer Account ($25 one-time)
+   - Upload .apk file via Play Console
+   - Review time: 2-3 hours
+
+=== EASIER OPTION ===
+For now, users can simply:
+1. Visit https://sovrenai.app on mobile
+2. Tap "Add to Home Screen"
+3. Gets full app experience without app stores!

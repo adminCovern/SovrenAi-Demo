@@ -1,0 +1,770 @@
+#!/usr/bin/env python3
+"""
+SOVREN AI Deployment Test Suite
+Comprehensive testing for 24-hour deployment validation
+"""
+
+import os
+import sys
+import time
+import json
+import asyncio
+import aiohttp
+from typing import Dict, List, Any, Tuple
+import logging
+from datetime import datetime
+import subprocess
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('DeploymentTests')
+
+# Test Configuration
+TEST_CONFIG = {
+    'api_url': 'https://sovrenai.app/api',
+    'ws_url': 'wss://sovrenai.app/ws',
+    'timeout': 30,
+    'performance_thresholds': {
+        'decision_latency_ms': 100,
+        'voice_latency_ms': 200,
+        'api_response_ms': 500,
+        'concurrent_users': 500,
+        'simulations_per_second': 100000
+    },
+    'required_services': [
+        'sovren-consciousness',
+        'sovren-shadow-board',
+        'sovren-agent-battalion',
+        'sovren-time-machine',
+        'sovren-security',
+        'sovren-voice',
+        'sovren-freeswitch',
+        'sovren-killbill',
+        'sovren-api'
+    ]
+}
+
+class DeploymentTestSuite:
+    """Complete deployment test suite"""
+    
+    def __init__(self):
+        self.results = {
+            'infrastructure': {},
+            'services': {},
+            'performance': {},
+            'integration': {},
+            'security': {},
+            'timestamp': datetime.now().isoformat()
+        }
+        self.session = None
+        
+    async def run_all_tests(self) -> Dict[str, Any]:
+        """Run complete test suite"""
+        logger.info("Starting SOVREN AI Deployment Tests...")
+        
+        # Create HTTP session
+        self.session = aiohttp.ClientSession()
+        
+        try:
+            # Phase 1: Infrastructure Tests
+            await self.test_infrastructure()
+            
+            # Phase 2: Service Tests
+            await self.test_services()
+            
+            # Phase 3: Performance Tests
+            await self.test_performance()
+            
+            # Phase 4: Integration Tests
+            await self.test_integration()
+            
+            # Phase 5: Security Tests
+            await self.test_security()
+            
+            # Generate report
+            self.generate_report()
+            
+        finally:
+            await self.session.close()
+            
+        return self.results
+        
+    async def test_infrastructure(self):
+        """Test infrastructure requirements"""
+        logger.info("Testing infrastructure...")
+        
+        tests = {
+            'gpu_check': self._check_gpus(),
+            'memory_check': self._check_memory(),
+            'cpu_check': self._check_cpu(),
+            'storage_check': self._check_storage(),
+            'network_check': await self._check_network()
+        }
+        
+        for test_name, result in tests.items():
+            self.results['infrastructure'][test_name] = result
+            
+    def _check_gpus(self) -> Dict[str, Any]:
+        """Check GPU availability"""
+        try:
+            # Check nvidia-smi
+            result = subprocess.run(
+                ['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv,noheader'],
+                capture_output=True,
+                text=True
+            )
+            
+            gpus = []
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    name, memory = line.split(', ')
+                    gpus.append({
+                        'name': name,
+                        'memory': memory
+                    })
+                    
+            # Verify B200 GPUs
+            b200_count = sum(1 for gpu in gpus if 'B200' in gpu['name'])
+            
+            return {
+                'status': 'pass' if b200_count >= 8 else 'fail',
+                'gpu_count': len(gpus),
+                'b200_count': b200_count,
+                'gpus': gpus
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    def _check_memory(self) -> Dict[str, Any]:
+        """Check system memory"""
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                meminfo = f.read()
+                
+            total_gb = 0
+            for line in meminfo.split('\n'):
+                if line.startswith('MemTotal:'):
+                    total_kb = int(line.split()[1])
+                    total_gb = total_kb / (1024 * 1024)
+                    break
+                    
+            return {
+                'status': 'pass' if total_gb >= 2000 else 'fail',  # 2TB minimum
+                'total_gb': round(total_gb, 2),
+                'required_gb': 2300
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    def _check_cpu(self) -> Dict[str, Any]:
+        """Check CPU cores"""
+        try:
+            cpu_count = os.cpu_count()
+            
+            # Check CPU info
+            with open('/proc/cpuinfo', 'r') as f:
+                cpuinfo = f.read()
+                
+            # Count physical cores
+            physical_cores = cpuinfo.count('processor')
+            
+            return {
+                'status': 'pass' if physical_cores >= 288 else 'fail',
+                'cores': physical_cores,
+                'threads': cpu_count,
+                'required_cores': 288
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    def _check_storage(self) -> Dict[str, Any]:
+        """Check storage space"""
+        try:
+            stat = os.statvfs('/opt/sovren')
+            
+            # Calculate available space
+            total_gb = (stat.f_blocks * stat.f_frsize) / (1024**3)
+            available_gb = (stat.f_bavail * stat.f_frsize) / (1024**3)
+            
+            return {
+                'status': 'pass' if total_gb >= 20000 else 'fail',  # 20TB minimum
+                'total_gb': round(total_gb, 2),
+                'available_gb': round(available_gb, 2),
+                'required_gb': 30000
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def _check_network(self) -> Dict[str, Any]:
+        """Check network connectivity"""
+        try:
+            # Test external connectivity
+            start = time.time()
+            async with self.session.get('https://www.google.com') as response:
+                external_latency = (time.time() - start) * 1000
+                
+            # Test API connectivity
+            start = time.time()
+            async with self.session.get(f"{TEST_CONFIG['api_url']}/health") as response:
+                api_latency = (time.time() - start) * 1000
+                api_status = response.status == 200
+                
+            return {
+                'status': 'pass' if api_status else 'fail',
+                'external_connectivity': True,
+                'api_connectivity': api_status,
+                'external_latency_ms': round(external_latency, 2),
+                'api_latency_ms': round(api_latency, 2)
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def test_services(self):
+        """Test all SOVREN services"""
+        logger.info("Testing services...")
+        
+        for service in TEST_CONFIG['required_services']:
+            self.results['services'][service] = await self._check_service(service)
+            
+    async def _check_service(self, service_name: str) -> Dict[str, Any]:
+        """Check individual service status"""
+        try:
+            # Check systemd service
+            result = subprocess.run(
+                ['systemctl', 'is-active', service_name],
+                capture_output=True,
+                text=True
+            )
+            
+            is_active = result.stdout.strip() == 'active'
+            
+            # Get service details
+            if is_active:
+                detail_result = subprocess.run(
+                    ['systemctl', 'status', service_name, '--no-pager'],
+                    capture_output=True,
+                    text=True
+                )
+                
+                # Extract memory usage
+                memory_usage = 'Unknown'
+                for line in detail_result.stdout.split('\n'):
+                    if 'Memory:' in line:
+                        memory_usage = line.split('Memory:')[1].strip()
+                        break
+                        
+                return {
+                    'status': 'pass',
+                    'active': True,
+                    'memory_usage': memory_usage
+                }
+            else:
+                return {
+                    'status': 'fail',
+                    'active': False,
+                    'reason': result.stdout.strip()
+                }
+                
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def test_performance(self):
+        """Test performance metrics"""
+        logger.info("Testing performance...")
+        
+        # API Response Time
+        self.results['performance']['api_response'] = await self._test_api_response_time()
+        
+        # Decision Latency
+        self.results['performance']['decision_latency'] = await self._test_decision_latency()
+        
+        # Concurrent Users
+        self.results['performance']['concurrent_users'] = await self._test_concurrent_users()
+        
+        # GPU Utilization
+        self.results['performance']['gpu_utilization'] = self._test_gpu_utilization()
+        
+    async def _test_api_response_time(self) -> Dict[str, Any]:
+        """Test API response times"""
+        latencies = []
+        
+        for _ in range(10):
+            start = time.time()
+            try:
+                async with self.session.get(
+                    f"{TEST_CONFIG['api_url']}/health",
+                    timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    latency = (time.time() - start) * 1000
+                    latencies.append(latency)
+            except:
+                pass
+                
+        if latencies:
+            avg_latency = sum(latencies) / len(latencies)
+            threshold = TEST_CONFIG['performance_thresholds']['api_response_ms']
+            
+            return {
+                'status': 'pass' if avg_latency < threshold else 'fail',
+                'average_ms': round(avg_latency, 2),
+                'threshold_ms': threshold,
+                'samples': len(latencies)
+            }
+        else:
+            return {
+                'status': 'error',
+                'error': 'No successful requests'
+            }
+            
+    async def _test_decision_latency(self) -> Dict[str, Any]:
+        """Test decision-making latency"""
+        try:
+            decision_request = {
+                'context': {'test': True},
+                'objectives': ['optimize_performance'],
+                'priority': 5
+            }
+            
+            start = time.time()
+            async with self.session.post(
+                f"{TEST_CONFIG['api_url']}/decide",
+                json=decision_request,
+                headers={'X-User-ID': 'test', 'X-ZKP': '{}'}
+            ) as response:
+                latency = (time.time() - start) * 1000
+                
+                if response.status == 200:
+                    data = await response.json()
+                    threshold = TEST_CONFIG['performance_thresholds']['decision_latency_ms']
+                    
+                    return {
+                        'status': 'pass' if latency < threshold else 'fail',
+                        'latency_ms': round(latency, 2),
+                        'threshold_ms': threshold,
+                        'confidence': data.get('confidence', 0)
+                    }
+                else:
+                    return {
+                        'status': 'fail',
+                        'error': f'HTTP {response.status}'
+                    }
+                    
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def _test_concurrent_users(self) -> Dict[str, Any]:
+        """Test concurrent user handling"""
+        concurrent_requests = 50
+        
+        async def make_request():
+            try:
+                async with self.session.get(
+                    f"{TEST_CONFIG['api_url']}/health",
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
+                    return response.status == 200
+            except:
+                return False
+                
+        # Launch concurrent requests
+        start = time.time()
+        tasks = [make_request() for _ in range(concurrent_requests)]
+        results = await asyncio.gather(*tasks)
+        duration = time.time() - start
+        
+        success_count = sum(1 for r in results if r)
+        success_rate = success_count / concurrent_requests
+        
+        return {
+            'status': 'pass' if success_rate > 0.95 else 'fail',
+            'concurrent_requests': concurrent_requests,
+            'successful': success_count,
+            'success_rate': round(success_rate, 2),
+            'duration_seconds': round(duration, 2)
+        }
+        
+    def _test_gpu_utilization(self) -> Dict[str, Any]:
+        """Test GPU utilization"""
+        try:
+            result = subprocess.run(
+                ['nvidia-smi', '--query-gpu=utilization.gpu', '--format=csv,noheader,nounits'],
+                capture_output=True,
+                text=True
+            )
+            
+            utilizations = []
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    utilizations.append(int(line))
+                    
+            avg_utilization = sum(utilizations) / len(utilizations) if utilizations else 0
+            
+            return {
+                'status': 'pass',
+                'gpu_count': len(utilizations),
+                'average_utilization': round(avg_utilization, 2),
+                'per_gpu': utilizations
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def test_integration(self):
+        """Test system integration"""
+        logger.info("Testing integration...")
+        
+        # Test consciousness to shadow board
+        self.results['integration']['consciousness_shadow_board'] = \
+            await self._test_consciousness_shadow_board()
+            
+        # Test agent battalion integration
+        self.results['integration']['agent_battalion'] = \
+            await self._test_agent_battalion()
+            
+        # Test time machine
+        self.results['integration']['time_machine'] = \
+            await self._test_time_machine()
+            
+        # Test billing system
+        self.results['integration']['billing'] = \
+            await self._test_billing_system()
+            
+    async def _test_consciousness_shadow_board(self) -> Dict[str, Any]:
+        """Test consciousness to shadow board integration"""
+        try:
+            # Create board meeting request
+            meeting_request = {
+                'topic': {
+                    'subject': 'Integration Test',
+                    'type': 'test',
+                    'priority': 5
+                },
+                'urgency': 'low'
+            }
+            
+            async with self.session.post(
+                f"{TEST_CONFIG['api_url']}/shadow-board/meeting",
+                json=meeting_request,
+                headers={'X-User-ID': 'test', 'X-ZKP': '{}'}
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        'status': 'pass',
+                        'meeting_id': data.get('meeting_id'),
+                        'consensus': data.get('consensus', {}).get('level', 'Unknown')
+                    }
+                elif response.status == 403:
+                    # Shadow board not available for enterprise
+                    return {
+                        'status': 'skip',
+                        'reason': 'Enterprise tier'
+                    }
+                else:
+                    return {
+                        'status': 'fail',
+                        'error': f'HTTP {response.status}'
+                    }
+                    
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def _test_agent_battalion(self) -> Dict[str, Any]:
+        """Test agent battalion operations"""
+        try:
+            mission_request = {
+                'mission_type': 'optimization',
+                'objectives': ['test_optimization'],
+                'context': {'test': True},
+                'priority': 5
+            }
+            
+            async with self.session.post(
+                f"{TEST_CONFIG['api_url']}/mission",
+                json=mission_request,
+                headers={'X-User-ID': 'test', 'X-ZKP': '{}'}
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        'status': 'pass',
+                        'mission_id': data.get('mission_id'),
+                        'execution_status': data.get('status'),
+                        'duration': data.get('duration', 0)
+                    }
+                else:
+                    return {
+                        'status': 'fail',
+                        'error': f'HTTP {response.status}'
+                    }
+                    
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def _test_time_machine(self) -> Dict[str, Any]:
+        """Test time machine functionality"""
+        try:
+            exploration_request = {
+                'horizon_days': 7,
+                'num_timelines': 100
+            }
+            
+            async with self.session.post(
+                f"{TEST_CONFIG['api_url']}/time-machine/explore",
+                json=exploration_request,
+                headers={'X-User-ID': 'test', 'X-ZKP': '{}'}
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    timelines = data.get('timelines', [])
+                    
+                    return {
+                        'status': 'pass' if timelines else 'fail',
+                        'timelines_generated': len(timelines),
+                        'best_value': timelines[0]['value_generated'] if timelines else 0
+                    }
+                else:
+                    return {
+                        'status': 'fail',
+                        'error': f'HTTP {response.status}'
+                    }
+                    
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def _test_billing_system(self) -> Dict[str, Any]:
+        """Test billing system"""
+        try:
+            # Test billing status endpoint
+            async with self.session.get(
+                f"{TEST_CONFIG['api_url']}/billing/status/test_customer",
+                headers={'X-User-ID': 'test', 'X-ZKP': '{}'}
+            ) as response:
+                # 404 is expected for non-existent customer
+                if response.status == 404:
+                    return {
+                        'status': 'pass',
+                        'billing_system': 'operational'
+                    }
+                elif response.status == 200:
+                    return {
+                        'status': 'pass',
+                        'billing_system': 'operational',
+                        'test_customer_exists': True
+                    }
+                else:
+                    return {
+                        'status': 'fail',
+                        'error': f'HTTP {response.status}'
+                    }
+                    
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def test_security(self):
+        """Test security features"""
+        logger.info("Testing security...")
+        
+        # Test authentication
+        self.results['security']['authentication'] = await self._test_authentication()
+        
+        # Test threat detection
+        self.results['security']['threat_detection'] = await self._test_threat_detection()
+        
+        # Test SSL/TLS
+        self.results['security']['ssl_tls'] = await self._test_ssl()
+        
+    async def _test_authentication(self) -> Dict[str, Any]:
+        """Test authentication system"""
+        try:
+            # Test without auth
+            async with self.session.get(
+                f"{TEST_CONFIG['api_url']}/dashboard"
+            ) as response:
+                unauthorized = response.status == 403
+                
+            # Test with auth
+            async with self.session.get(
+                f"{TEST_CONFIG['api_url']}/dashboard",
+                headers={'X-User-ID': 'test', 'X-ZKP': '{}'}
+            ) as response:
+                authorized = response.status in [200, 403]  # 403 if ZKP invalid
+                
+            return {
+                'status': 'pass' if unauthorized else 'fail',
+                'auth_required': unauthorized,
+                'auth_functional': authorized
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def _test_threat_detection(self) -> Dict[str, Any]:
+        """Test threat detection system"""
+        try:
+            # Send potentially malicious request
+            malicious_request = {
+                'context': {
+                    'sql': "'; DROP TABLE users; --",
+                    'xss': "<script>alert('xss')</script>"
+                },
+                'objectives': ['test_security']
+            }
+            
+            async with self.session.post(
+                f"{TEST_CONFIG['api_url']}/decide",
+                json=malicious_request,
+                headers={'X-User-ID': 'test', 'X-ZKP': '{}'}
+            ) as response:
+                # Should be blocked
+                blocked = response.status == 403
+                
+                return {
+                    'status': 'pass' if blocked else 'fail',
+                    'threat_blocked': blocked,
+                    'response_status': response.status
+                }
+                
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    async def _test_ssl(self) -> Dict[str, Any]:
+        """Test SSL/TLS configuration"""
+        try:
+            # Check if HTTPS is enforced
+            url = TEST_CONFIG['api_url']
+            if url.startswith('https://'):
+                return {
+                    'status': 'pass',
+                    'https_enabled': True,
+                    'url': url
+                }
+            else:
+                return {
+                    'status': 'fail',
+                    'https_enabled': False,
+                    'reason': 'API not using HTTPS'
+                }
+                
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+            
+    def generate_report(self):
+        """Generate test report"""
+        logger.info("Generating test report...")
+        
+        # Calculate summary
+        total_tests = 0
+        passed_tests = 0
+        failed_tests = 0
+        error_tests = 0
+        
+        for category, tests in self.results.items():
+            if isinstance(tests, dict) and category != 'timestamp':
+                for test_name, result in tests.items():
+                    if isinstance(result, dict) and 'status' in result:
+                        total_tests += 1
+                        if result['status'] == 'pass':
+                            passed_tests += 1
+                        elif result['status'] == 'fail':
+                            failed_tests += 1
+                        elif result['status'] == 'error':
+                            error_tests += 1
+                            
+        self.results['summary'] = {
+            'total_tests': total_tests,
+            'passed': passed_tests,
+            'failed': failed_tests,
+            'errors': error_tests,
+            'success_rate': round(passed_tests / total_tests * 100, 2) if total_tests > 0 else 0
+        }
+        
+        # Save report
+        report_path = f'/opt/sovren/test_reports/deployment_test_{int(time.time())}.json'
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        
+        with open(report_path, 'w') as f:
+            json.dump(self.results, f, indent=2)
+            
+        logger.info(f"Test report saved to: {report_path}")
+        
+        # Print summary
+        print("\n" + "="*60)
+        print("SOVREN AI DEPLOYMENT TEST RESULTS")
+        print("="*60)
+        print(f"Total Tests: {total_tests}")
+        print(f"Passed: {passed_tests} ({self.results['summary']['success_rate']}%)")
+        print(f"Failed: {failed_tests}")
+        print(f"Errors: {error_tests}")
+        print("="*60)
+        
+        if failed_tests > 0 or error_tests > 0:
+            print("\nFAILED TESTS:")
+            for category, tests in self.results.items():
+                if isinstance(tests, dict) and category not in ['timestamp', 'summary']:
+                    for test_name, result in tests.items():
+                        if isinstance(result, dict) and result.get('status') in ['fail', 'error']:
+                            print(f"  - {category}.{test_name}: {result.get('error', 'Failed')}")
+                            
+        print("\n")
+
+async def main():
+    """Run deployment tests"""
+    tester = DeploymentTestSuite()
+    await tester.run_all_tests()
+
+if __name__ == "__main__":
+    asyncio.run(main())

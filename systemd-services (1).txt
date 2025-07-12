@@ -1,0 +1,648 @@
+# /etc/systemd/system/sovren-consciousness.service
+[Unit]
+Description=SOVREN Consciousness Engine - Distributed Intelligence
+After=network.target
+Requires=sovren-gpu-init.service
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren
+
+# Environment
+Environment="PATH=/data/sovren/bin:/usr/local/cuda/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/lib:/usr/local/cuda/lib64:/usr/local/TensorRT-10.12/lib"
+Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True"
+Environment="SOVREN_ROOT=/data/sovren"
+
+# Resource Limits
+LimitNOFILE=1048576
+LimitMEMLOCK=infinity
+LimitSTACK=67108864
+MemoryMax=128G
+CPUWeight=200
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren /dev/shm
+NoNewPrivileges=yes
+
+# GPU Access
+DeviceAllow=/dev/nvidia0 rw
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia-uvm rw
+DeviceAllow=/dev/nvidia-modeset rw
+SupplementaryGroups=video
+
+# Execution
+ExecStartPre=/data/sovren/bin/check-gpu-ready.sh
+ExecStart=/data/sovren/bin/python /data/sovren/consciousness/consciousness_engine.py
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+StartLimitBurst=3
+StartLimitInterval=60s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-consciousness
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-shadow-board.service
+[Unit]
+Description=SOVREN Shadow Board - Psychologically Optimized C-Suite (SMB Only)
+After=network.target sovren-consciousness.service
+Requires=sovren-consciousness.service
+ConditionEnvironment=USER_TIER=!ENTERPRISE
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren
+
+# Environment
+Environment="PATH=/data/sovren/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/lib"
+Environment="SOVREN_ROOT=/data/sovren"
+Environment="USER_TIER=SMB"
+
+# Resource Limits
+LimitNOFILE=65536
+MemoryMax=16G
+CPUWeight=150
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren /dev/shm
+NoNewPrivileges=yes
+
+# Execution
+ExecStartPre=/data/sovren/bin/check-tier.sh SMB
+ExecStart=/data/sovren/bin/python /data/sovren/shadow_board/shadow_board_system.py
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-shadow-board
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-agent-battalion.service
+[Unit]
+Description=SOVREN Agent Battalion - PhD-Level Dynamic Agents
+After=network.target sovren-consciousness.service
+Requires=sovren-consciousness.service
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren
+
+# Environment
+Environment="PATH=/data/sovren/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/lib"
+Environment="SOVREN_ROOT=/data/sovren"
+
+# Resource Limits
+LimitNOFILE=262144
+LimitNPROC=10000
+MemoryMax=32G
+CPUWeight=100
+TasksMax=5000
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren /dev/shm
+NoNewPrivileges=yes
+
+# Process Management
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=300
+
+# Execution
+ExecStart=/data/sovren/bin/python /data/sovren/agent_battalion/agent_battalion_system.py
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-agent-battalion
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-time-machine.service
+[Unit]
+Description=SOVREN Time Machine - Temporal Intelligence System
+After=network.target sovren-consciousness.service
+Requires=sovren-consciousness.service
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren
+
+# Environment
+Environment="PATH=/data/sovren/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/lib"
+Environment="SOVREN_ROOT=/data/sovren"
+
+# Resource Limits
+LimitNOFILE=65536
+MemoryMax=8G
+IOWeight=150
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren /dev/shm
+NoNewPrivileges=yes
+
+# Database Access
+ReadWritePaths=/data/sovren/data
+
+# Execution
+ExecStart=/data/sovren/bin/python /data/sovren/time_machine/time_machine_system.py
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-time-machine
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-freeswitch.service
+[Unit]
+Description=SOVREN FreeSwitch - Voice Telephony System
+After=network.target
+Before=sovren-voice.service
+PartOf=sovren.target
+
+[Service]
+Type=forking
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren/freeswitch
+
+# Environment
+Environment="PATH=/data/sovren/freeswitch/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/freeswitch/lib"
+
+# Resource Limits
+LimitNOFILE=999999
+LimitCORE=infinity
+LimitMEMLOCK=infinity
+MemoryMax=4G
+CPUWeight=150
+
+# Network
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren/freeswitch
+NoNewPrivileges=yes
+
+# Execution
+PIDFile=/data/sovren/freeswitch/run/freeswitch.pid
+ExecStartPre=/data/sovren/bin/check-freeswitch-config.sh
+ExecStart=/data/sovren/freeswitch/bin/freeswitch -ncwait
+ExecReload=/bin/kill -HUP $MAINPID
+TimeoutSec=45s
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-freeswitch
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-voice.service
+[Unit]
+Description=SOVREN Voice System - Sovereign Voice Processing
+After=network.target sovren-freeswitch.service sovren-consciousness.service
+Requires=sovren-freeswitch.service sovren-consciousness.service
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren
+
+# Environment
+Environment="PATH=/data/sovren/bin:/usr/local/cuda/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/lib:/usr/local/cuda/lib64"
+Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="SOVREN_ROOT=/data/sovren"
+
+# Resource Limits
+LimitNOFILE=65536
+MemoryMax=16G
+CPUWeight=180
+
+# GPU Access
+DeviceAllow=/dev/nvidia0 rw
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia-uvm rw
+SupplementaryGroups=video audio
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren /dev/shm
+NoNewPrivileges=yes
+
+# Audio Access
+PrivateDevices=no
+DeviceAllow=/dev/snd/* rw
+
+# Execution
+ExecStartPre=/data/sovren/bin/wait-for-freeswitch.sh
+ExecStart=/data/sovren/bin/python /data/sovren/voice/voice_system.py
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-voice
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-security.service
+[Unit]
+Description=SOVREN Security - Zero-Knowledge & Adversarial Hardening
+After=network.target
+Before=sovren-consciousness.service
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren
+
+# Environment
+Environment="PATH=/data/sovren/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/lib"
+Environment="SOVREN_ROOT=/data/sovren"
+
+# Resource Limits
+LimitNOFILE=65536
+MemoryMax=4G
+CPUWeight=200
+Nice=-5
+
+# Security (Meta!)
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren /dev/shm
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+# Execution
+ExecStart=/data/sovren/bin/python /data/sovren/security/security_hardening_system.py
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+WatchdogSec=30s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-security
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-precognitive.service
+[Unit]
+Description=SOVREN Pre-Cognitive Engine - PCSE
+After=network.target sovren-consciousness.service
+Requires=sovren-consciousness.service
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren
+
+# Environment
+Environment="PATH=/data/sovren/bin:/usr/local/cuda/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/lib:/usr/local/cuda/lib64"
+Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="SOVREN_ROOT=/data/sovren"
+
+# Resource Limits
+LimitNOFILE=65536
+MemoryMax=24G
+CPUWeight=120
+
+# GPU Access
+DeviceAllow=/dev/nvidia0 rw
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia-uvm rw
+SupplementaryGroups=video
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren /dev/shm
+NoNewPrivileges=yes
+
+# Execution
+ExecStart=/data/sovren/bin/python /data/sovren/precognitive/precognitive_engine.py
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-precognitive
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-killbill.service
+[Unit]
+Description=SOVREN Kill Bill - Sovereign Billing Platform
+After=network.target postgresql.service
+Requires=postgresql.service
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren/killbill
+
+# Environment
+Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
+Environment="CATALINA_HOME=/data/sovren/killbill"
+Environment="CATALINA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC"
+
+# Resource Limits
+LimitNOFILE=65536
+MemoryMax=6G
+CPUWeight=80
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren/killbill
+NoNewPrivileges=yes
+
+# Execution
+ExecStart=/usr/bin/java -jar /data/sovren/killbill/killbill.war
+ExecStop=/bin/kill -TERM $MAINPID
+Restart=always
+RestartSec=30
+SuccessExitStatus=143
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-killbill
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren-api.service
+[Unit]
+Description=SOVREN API - External Interface
+After=network.target sovren-consciousness.service
+Requires=sovren-consciousness.service
+PartOf=sovren.target
+
+[Service]
+Type=simple
+User=sovren
+Group=sovren
+WorkingDirectory=/data/sovren
+
+# Environment
+Environment="PATH=/data/sovren/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/data/sovren/lib"
+Environment="SOVREN_ROOT=/data/sovren"
+Environment="SOVREN_API_PORT=8080"
+
+# Resource Limits
+LimitNOFILE=65536
+MemoryMax=4G
+CPUWeight=100
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/data/sovren
+NoNewPrivileges=yes
+
+# Network
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Execution
+ExecStart=/data/sovren/bin/python /data/sovren/api/api_server.py
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sovren-api
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# /etc/systemd/system/sovren.target
+[Unit]
+Description=SOVREN AI - Complete System Target
+Requires=network.target
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+---
+
+# /etc/systemd/system/sovren-gpu-init.service
+[Unit]
+Description=SOVREN GPU Initialization
+Before=sovren-consciousness.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/data/sovren/bin/init-gpu.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=sovren.target
+
+---
+
+# Helper Scripts
+
+# /data/sovren/bin/check-gpu-ready.sh
+#!/bin/bash
+# Check if GPU is ready for SOVREN
+
+set -e
+
+# Check if nvidia-smi works
+if ! nvidia-smi &>/dev/null; then
+    echo "ERROR: nvidia-smi not working" >&2
+    exit 1
+fi
+
+# Check for B200
+if ! nvidia-smi | grep -q "B200"; then
+    echo "ERROR: NVIDIA B200 not found" >&2
+    exit 1
+fi
+
+# Check CUDA
+if ! nvcc --version | grep -q "12.6"; then
+    echo "ERROR: CUDA 12.6+ required" >&2
+    exit 1
+fi
+
+echo "GPU ready for SOVREN"
+exit 0
+
+---
+
+# /data/sovren/bin/check-tier.sh
+#!/bin/bash
+# Check if user tier matches requirement
+
+REQUIRED_TIER=$1
+CURRENT_TIER=${USER_TIER:-SMB}
+
+if [ "$REQUIRED_TIER" = "SMB" ] && [ "$CURRENT_TIER" = "ENTERPRISE" ]; then
+    echo "Service not available for Enterprise tier" >&2
+    exit 1
+fi
+
+exit 0
+
+---
+
+# /data/sovren/bin/wait-for-freeswitch.sh
+#!/bin/bash
+# Wait for FreeSwitch to be ready
+
+for i in {1..30}; do
+    if /data/sovren/freeswitch/bin/fs_cli -x "status" &>/dev/null; then
+        echo "FreeSwitch is ready"
+        exit 0
+    fi
+    echo "Waiting for FreeSwitch... ($i/30)"
+    sleep 2
+done
+
+echo "FreeSwitch failed to start" >&2
+exit 1
+
+---
+
+# /data/sovren/bin/init-gpu.sh
+#!/bin/bash
+# Initialize GPU for SOVREN
+
+set -e
+
+# Set GPU to persistence mode
+nvidia-smi -pm 1
+
+# Set power limit for B200 (if needed)
+# nvidia-smi -pl 400
+
+# Create GPU device nodes if missing
+if [ ! -e /dev/nvidia0 ]; then
+    mknod -m 666 /dev/nvidia0 c 195 0
+fi
+
+if [ ! -e /dev/nvidiactl ]; then
+    mknod -m 666 /dev/nvidiactl c 195 255
+fi
+
+if [ ! -e /dev/nvidia-uvm ]; then
+    mknod -m 666 /dev/nvidia-uvm c 243 0
+fi
+
+echo "GPU initialized for SOVREN"
+exit 0

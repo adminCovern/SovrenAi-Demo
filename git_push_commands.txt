@@ -1,0 +1,17 @@
+Run these exact commands one by one:
+
+1. First command:
+cd /data/sovren
+
+2. Second command:
+git add README.md api frontend mobile approval billing consciousness agent_battalion shadow_board time_machine security voice mcp
+
+3. Third command:
+git commit -m "SOVREN AI v3.1 Complete"
+
+4. Fourth command:
+git push -u origin main
+
+When it asks for username and password:
+Username: adminCovern
+Password: [paste your GitHub token here]
